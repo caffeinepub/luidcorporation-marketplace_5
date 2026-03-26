@@ -11,27 +11,19 @@ import List "mo:core/List";
 import MixinAuthorization "authorization/MixinAuthorization";
 import AccessControl "authorization/access-control";
 import MixinStorage "blob-storage/Mixin";
-import Storage "blob-storage/Storage";
 
 actor {
   type LuidId = Text;
   type ScriptId = Nat;
   type Password = Text;
 
-  module User {
-    type Password = Text;
-    public type Account = {
-      luidId : LuidId;
-      email : Text;
-      password : Password;
-    };
-
-    public func compare(user1 : Account, user2 : Account) : Order.Order {
-      Text.compare(user1.luidId, user2.luidId);
-    };
+  type UserAccount = {
+    luidId : LuidId;
+    email : Text;
+    password : Password;
   };
 
-  let userAccounts = Map.empty<LuidId, User.Account>();
+  let userAccounts = Map.empty<LuidId, UserAccount>();
 
   public query func isRegistered(luidId : LuidId) : async Bool {
     userAccounts.containsKey(luidId);
@@ -77,7 +69,6 @@ actor {
     };
   };
 
-  // Marketplace state
   let scripts = Map.empty<ScriptId, Script.Record>();
 
   public type MarketplaceState = {
@@ -102,7 +93,6 @@ actor {
 
   include MixinStorage();
 
-  // User Profile Management
   public type UserProfile = {
     luidId : LuidId;
     email : Text;
@@ -123,7 +113,7 @@ actor {
   };
 
   // User Account Management
-  public shared ({ caller }) func register(
+  public shared func register(
     luidId : LuidId,
     email : Text,
     password : Text,
@@ -131,32 +121,30 @@ actor {
     if (userAccounts.containsKey(luidId)) {
       Runtime.trap("User already exists");
     };
-
-    userAccounts.add(
-      luidId,
-      {
-        luidId;
-        email;
-        password;
-      },
-    );
+    userAccounts.add(luidId, { luidId; email; password });
   };
 
-  public shared ({ caller }) func login(
+  public shared func login(
     luidId : LuidId,
     password : Text,
   ) : async Bool {
     authenticateUser(luidId, password);
   };
 
-  public query func getAllUserAccounts() : async [User.Account] {
-    userAccounts.values().toArray().sort();
+  public type Account = {
+    luidId : LuidId;
+    email : Text;
+    password : Password;
+  };
+
+  public query func getAllUserAccounts() : async [Account] {
+    userAccounts.values().toArray();
   };
 
   public shared func deleteUser(luidId : LuidId) : async () {
     switch (userAccounts.get(luidId)) {
       case (null) { Runtime.trap("User does not exist") };
-      case (?_) { ignore userAccounts.remove(luidId) };
+      case (?_) { userAccounts.remove(luidId) };
     };
   };
 
@@ -167,15 +155,15 @@ actor {
   ) : async () {
     switch (userAccounts.get(luidId)) {
       case (null) { Runtime.trap("User does not exist") };
-      case (?account) {
-        let newPassword = if (Text.equal(password, "")) account.password else password;
-        ignore userAccounts.remove(luidId);
+      case (?existing) {
+        let newPassword = if (Text.equal(password, "")) existing.password else password;
+        userAccounts.remove(luidId);
         userAccounts.add(luidId, { luidId; email; password = newPassword });
       };
     };
   };
 
-  // Script Management (no ICP role check - admin auth handled client-side)
+  // Script Management
   public shared func addScriptForSale(
     title : Text,
     description : Text,
@@ -212,7 +200,7 @@ actor {
     fileUrl : Text,
   ) : async () {
     ignore getScriptInternal(scriptId);
-
+    scripts.remove(scriptId);
     scripts.add(
       scriptId,
       {
@@ -229,11 +217,12 @@ actor {
   };
 
   public shared func deleteScript(scriptId : ScriptId) : async () {
-    ignore getScriptInternal(scriptId);
-    scripts.remove(scriptId);
+    switch (scripts.get(scriptId)) {
+      case (null) { Runtime.trap("Script does not exist") };
+      case (?_) { scripts.remove(scriptId) };
+    };
   };
 
-  // Script Browsing (Public)
   public query func getAllScripts() : async [Script.Record] {
     scripts.values().toArray().sort();
   };
@@ -244,23 +233,18 @@ actor {
 
   public query func getScriptsByCategory(category : Category) : async [Script.Record] {
     scripts.values().toArray().filter(
-      func(script) {
-        script.category == category;
-      }
+      func(script) { script.category == category }
     );
   };
 
   public query func getScriptsByLanguage(language : Text) : async [Script.Record] {
-    scripts.values().toArray()
-      .filter(
-        func(script) {
-          script.language == language;
-        }
-      );
+    scripts.values().toArray().filter(
+      func(script) { script.language == language }
+    );
   };
 
   // Purchase Management
-  public shared ({ caller }) func purchaseScript(
+  public shared func purchaseScript(
     luidId : LuidId,
     scriptId : ScriptId,
   ) : async () {
@@ -270,10 +254,7 @@ actor {
       Runtime.trap("User does not exist");
     };
 
-    let purchase : Purchase.Record = {
-      luidId;
-      scriptId;
-    };
+    let purchase : Purchase.Record = { luidId; scriptId };
 
     let existingPurchases = marketplaceState.purchases.toArray();
     let anyExisting = existingPurchases.any(
@@ -288,13 +269,9 @@ actor {
   public query func getPurchasedScripts(luidId : LuidId) : async [ScriptId] {
     let purchasesArray = marketplaceState.purchases.toArray();
     purchasesArray.filter(
-      func(purchase) {
-        purchase.luidId == luidId;
-      }
+      func(purchase) { purchase.luidId == luidId }
     ).map(
-      func(purchase) {
-        purchase.scriptId;
-      }
+      func(purchase) { purchase.scriptId }
     );
   };
 
