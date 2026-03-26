@@ -47,19 +47,6 @@ actor {
   type Category = Text;
 
   module Script {
-    public module Category {
-      let validCategories = [
-        "Discord Bots",
-        "Web Scraping",
-        "Automacoes",
-        "Scripts de Vendas",
-      ];
-
-      public func isValid(category : Category) : Bool {
-        validCategories.any(func(validCategory) { Text.equal(category, validCategory) });
-      };
-    };
-
     public func compare(script1 : Record, script2 : Record) : Order.Order {
       Nat.compare(script1.id, script2.id);
     };
@@ -77,24 +64,10 @@ actor {
   };
 
   module Purchase {
-    public func compare(purchase1 : Record, purchase2 : Record) : Order.Order {
-      switch (Text.compare(purchase1.luidId, purchase2.luidId)) {
-        case (#equal) { Nat.compare(purchase1.scriptId, purchase2.scriptId) };
-        case (order) { order };
-      };
-    };
-
     public module Id {
       public type Record = {
         luidId : LuidId;
         scriptId : ScriptId;
-      };
-
-      public func compare(id1 : Record, id2 : Record) : Order.Order {
-        switch (Text.compare(id1.luidId, id2.luidId)) {
-          case (#equal) { Nat.compare(id1.scriptId, id2.scriptId) };
-          case (order) { order };
-        };
       };
     };
 
@@ -138,23 +111,14 @@ actor {
   let userProfiles = Map.empty<Principal, UserProfile>();
 
   public query ({ caller }) func getCallerUserProfile() : async ?UserProfile {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
-      Runtime.trap("Unauthorized: Only users can view profiles");
-    };
     userProfiles.get(caller);
   };
 
   public query ({ caller }) func getUserProfile(user : Principal) : async ?UserProfile {
-    if (caller != user and not AccessControl.isAdmin(accessControlState, caller)) {
-      Runtime.trap("Unauthorized: Can only view your own profile");
-    };
     userProfiles.get(user);
   };
 
   public shared ({ caller }) func saveCallerUserProfile(profile : UserProfile) : async () {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
-      Runtime.trap("Unauthorized: Only users can save profiles");
-    };
     userProfiles.add(caller, profile);
   };
 
@@ -185,15 +149,39 @@ actor {
     authenticateUser(luidId, password);
   };
 
-  public shared ({ caller }) func getAllUserAccounts() : async [User.Account] {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
-      Runtime.trap("Unauthorized: Only admins can view all users");
-    };
+  public query func getAllUserAccounts() : async [User.Account] {
     userAccounts.values().toArray().sort();
   };
 
-  // Script Management (Admin Only)
-  public shared ({ caller }) func addScriptForSale(
+  public shared func deleteUser(luidId : LuidId) : async () {
+    if (not userAccounts.containsKey(luidId)) {
+      Runtime.trap("User does not exist");
+    };
+    userAccounts.remove(luidId);
+  };
+
+  public shared func updateUser(
+    luidId : LuidId,
+    email : Text,
+    password : Text,
+  ) : async () {
+    switch (userAccounts.get(luidId)) {
+      case (null) { Runtime.trap("User does not exist") };
+      case (?account) {
+        userAccounts.add(
+          luidId,
+          {
+            luidId;
+            email;
+            password = if (Text.equal(password, "")) account.password else password;
+          },
+        );
+      };
+    };
+  };
+
+  // Script Management (no ICP role check - admin auth handled client-side)
+  public shared func addScriptForSale(
     title : Text,
     description : Text,
     category : Category,
@@ -202,10 +190,6 @@ actor {
     language : Text,
     fileUrl : Text,
   ) : async () {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
-      Runtime.trap("Unauthorized: Only admins can create scripts");
-    };
-
     scripts.add(
       marketplaceState.nextScriptId,
       {
@@ -222,7 +206,7 @@ actor {
     marketplaceState.nextScriptId += 1;
   };
 
-  public shared ({ caller }) func updateScript(
+  public shared func updateScript(
     scriptId : ScriptId,
     title : Text,
     description : Text,
@@ -232,10 +216,6 @@ actor {
     language : Text,
     fileUrl : Text,
   ) : async () {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
-      Runtime.trap("Unauthorized: Only admins can update scripts");
-    };
-
     ignore getScriptInternal(scriptId);
 
     scripts.add(
@@ -253,11 +233,7 @@ actor {
     );
   };
 
-  public shared ({ caller }) func deleteScript(scriptId : ScriptId) : async () {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
-      Runtime.trap("Unauthorized: Only admins can delete scripts");
-    };
-
+  public shared func deleteScript(scriptId : ScriptId) : async () {
     ignore getScriptInternal(scriptId);
     scripts.remove(scriptId);
   };
@@ -267,11 +243,11 @@ actor {
     scripts.values().toArray().sort();
   };
 
-  public query ({ caller }) func getScriptById(scriptId : ScriptId) : async Script.Record {
+  public query func getScriptById(scriptId : ScriptId) : async Script.Record {
     getScriptInternal(scriptId);
   };
 
-  public query ({ caller }) func getScriptsByCategory(category : Category) : async [Script.Record] {
+  public query func getScriptsByCategory(category : Category) : async [Script.Record] {
     scripts.values().toArray().filter(
       func(script) {
         script.category == category;
@@ -279,7 +255,7 @@ actor {
     );
   };
 
-  public query ({ caller }) func getScriptsByLanguage(language : Text) : async [Script.Record] {
+  public query func getScriptsByLanguage(language : Text) : async [Script.Record] {
     scripts.values().toArray()
       .filter(
         func(script) {
@@ -293,14 +269,8 @@ actor {
     luidId : LuidId,
     scriptId : ScriptId,
   ) : async () {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
-      Runtime.trap("Unauthorized: Only users can purchase scripts");
-    };
-
-    // Verify the script exists
     ignore getScriptInternal(scriptId);
 
-    // Verify user exists
     if (not userAccounts.containsKey(luidId)) {
       Runtime.trap("User does not exist");
     };
@@ -320,11 +290,7 @@ actor {
     marketplaceState.purchases.add(purchase);
   };
 
-  public query ({ caller }) func getPurchasedScripts(luidId : LuidId) : async [ScriptId] {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
-      Runtime.trap("Unauthorized: Only users can view purchased scripts");
-    };
-
+  public query func getPurchasedScripts(luidId : LuidId) : async [ScriptId] {
     let purchasesArray = marketplaceState.purchases.toArray();
     purchasesArray.filter(
       func(purchase) {
@@ -337,11 +303,7 @@ actor {
     );
   };
 
-  public query ({ caller }) func hasPurchasedScript(luidId : LuidId, scriptId : ScriptId) : async Bool {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
-      Runtime.trap("Unauthorized: Only users can check purchase status");
-    };
-
+  public query func hasPurchasedScript(luidId : LuidId, scriptId : ScriptId) : async Bool {
     let purchasesArray = marketplaceState.purchases.toArray();
     purchasesArray.any(
       func(purchase) {

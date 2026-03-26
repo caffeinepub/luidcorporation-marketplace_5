@@ -1,94 +1,22 @@
 import { Skeleton } from "@/components/ui/skeleton";
 import { motion } from "motion/react";
 import { useState } from "react";
-import type { Record_ } from "../backend.d";
 import CategoryTabs from "../components/CategoryTabs";
 import Footer from "../components/Footer";
 import Navbar from "../components/Navbar";
 import ScriptCard from "../components/ScriptCard";
 import { useAllScripts } from "../hooks/useQueries";
 
-const FALLBACK_SCRIPTS: Record_[] = [
-  {
-    id: 1n,
-    title: "Discord Bot Premium",
-    description:
-      "Bot completo para Discord com moderação, músicas e comandos customizados.",
-    language: "Python",
-    version: "2.4.1",
-    category: "Bots Discord",
-    price: 149.9,
-    fileUrl: "#",
-  },
-  {
-    id: 2n,
-    title: "Web Scraper Pro",
-    description:
-      "Extração automática de dados de qualquer site com suporte a JavaScript.",
-    language: "Python",
-    version: "1.8.0",
-    category: "Web Scraping",
-    price: 89.9,
-    fileUrl: "#",
-  },
-  {
-    id: 3n,
-    title: "Auto Sales Bot",
-    description:
-      "Automação completa de funil de vendas no WhatsApp e Instagram.",
-    language: "JavaScript",
-    version: "3.1.2",
-    category: "Scripts de Vendas",
-    price: 199.9,
-    fileUrl: "#",
-  },
-  {
-    id: 4n,
-    title: "Task Automator",
-    description:
-      "Automatize tarefas repetitivas com agendamento e notificações.",
-    language: "Python",
-    version: "1.2.5",
-    category: "Automações",
-    price: 69.9,
-    fileUrl: "#",
-  },
-  {
-    id: 5n,
-    title: "Discord Leveling Bot",
-    description:
-      "Sistema completo de níveis, XP, leaderboard e recompensas para Discord.",
-    language: "JavaScript",
-    version: "1.5.0",
-    category: "Bots Discord",
-    price: 99.9,
-    fileUrl: "#",
-  },
-  {
-    id: 6n,
-    title: "Price Monitor",
-    description:
-      "Monitore preços em e-commerces e receba alertas automáticos via Telegram.",
-    language: "Python",
-    version: "2.0.0",
-    category: "Web Scraping",
-    price: 59.9,
-    fileUrl: "#",
-  },
-];
-
 export default function MarketplacePage() {
   const [activeCategory, setActiveCategory] = useState("Todos");
-  const { data: backendScripts, isLoading } = useAllScripts();
+  const { data: scripts, isLoading } = useAllScripts();
 
-  const allScripts =
-    backendScripts && backendScripts.length > 0
-      ? backendScripts
-      : FALLBACK_SCRIPTS;
   const filtered =
-    activeCategory === "Todos"
-      ? allScripts
-      : allScripts.filter((s) => s.category === activeCategory);
+    !scripts || scripts.length === 0
+      ? []
+      : activeCategory === "Todos"
+        ? scripts
+        : scripts.filter((s) => s.category === activeCategory);
 
   return (
     <div className="min-h-screen flex flex-col bg-white">
@@ -129,7 +57,12 @@ export default function MarketplacePage() {
               className="text-center py-20 text-gray-400"
               data-ocid="marketplace.empty_state"
             >
-              Nenhum script encontrado nesta categoria.
+              <p className="text-lg font-semibold mb-2">
+                Nenhum script disponível ainda.
+              </p>
+              <p className="text-sm">
+                O administrador irá adicionar scripts em breve.
+              </p>
             </div>
           ) : (
             <motion.div

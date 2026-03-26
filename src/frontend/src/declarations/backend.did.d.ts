@@ -67,6 +67,8 @@ export interface _SERVICE {
   >,
   'assignCallerUserRole' : ActorMethod<[Principal, UserRole], undefined>,
   'deleteScript' : ActorMethod<[ScriptId], undefined>,
+  'deleteUser' : ActorMethod<[LuidId], undefined>,
+  'updateUser' : ActorMethod<[LuidId, string, string], undefined>,
   'getAllScripts' : ActorMethod<[], Array<Record>>,
   'getAllUserAccounts' : ActorMethod<[], Array<Account>>,
   'getCallerUserProfile' : ActorMethod<[], [] | [UserProfile]>,

@@ -166,6 +166,34 @@ export function useDeleteScript() {
   });
 }
 
+export function useDeleteUser() {
+  const { actor } = useActor();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (luidId: string) => {
+      if (!actor) throw new Error("No actor");
+      return actor.deleteUser(luidId);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["accounts"] }),
+  });
+}
+
+export function useUpdateUser() {
+  const { actor } = useActor();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: {
+      luidId: string;
+      email: string;
+      password: string;
+    }) => {
+      if (!actor) throw new Error("No actor");
+      return actor.updateUser(data.luidId, data.email, data.password);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["accounts"] }),
+  });
+}
+
 export function useLoginUser() {
   const { actor } = useActor();
   return useMutation({

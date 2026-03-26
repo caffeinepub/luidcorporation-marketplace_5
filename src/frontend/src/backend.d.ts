@@ -39,6 +39,8 @@ export interface backendInterface {
     addScriptForSale(title: string, description: string, category: Category, price: number, version: string, language: string, fileUrl: string): Promise<void>;
     assignCallerUserRole(user: Principal, role: UserRole): Promise<void>;
     deleteScript(scriptId: ScriptId): Promise<void>;
+    deleteUser(luidId: LuidId): Promise<void>;
+    updateUser(luidId: LuidId, email: string, password: string): Promise<void>;
     getAllScripts(): Promise<Array<Record_>>;
     getAllUserAccounts(): Promise<Array<Account>>;
     getCallerUserProfile(): Promise<UserProfile | null>;

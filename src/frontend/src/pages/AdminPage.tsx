@@ -26,14 +26,16 @@ import { Edit2, LogOut, Package, Plus, Trash2, Users } from "lucide-react";
 import { motion } from "motion/react";
 import { useState } from "react";
 import { toast } from "sonner";
-import type { Record_ } from "../backend.d";
+import type { Account, Record_ } from "../backend.d";
 import { useAuth } from "../context/AuthContext";
 import {
   useAddScript,
   useAllScripts,
   useAllUserAccounts,
   useDeleteScript,
+  useDeleteUser,
   useUpdateScript,
+  useUpdateUser,
 } from "../hooks/useQueries";
 
 const CATEGORIES = [
@@ -52,6 +54,11 @@ interface ScriptForm {
   version: string;
   language: string;
   fileUrl: string;
+}
+
+interface UserForm {
+  email: string;
+  password: string;
 }
 
 const emptyForm: ScriptForm = {
@@ -143,16 +150,29 @@ function AdminLogin({ onLogin }: { onLogin: () => void }) {
 export default function AdminPage() {
   const { isAdminLoggedIn, adminLogout } = useAuth();
   const [activeTab, setActiveTab] = useState<"scripts" | "users">("scripts");
-  const [showModal, setShowModal] = useState(false);
+
+  // Script state
+  const [showScriptModal, setShowScriptModal] = useState(false);
   const [editingScript, setEditingScript] = useState<Record_ | null>(null);
-  const [form, setForm] = useState<ScriptForm>(emptyForm);
-  const [deletingId, setDeletingId] = useState<bigint | null>(null);
+  const [scriptForm, setScriptForm] = useState<ScriptForm>(emptyForm);
+  const [deletingScriptId, setDeletingScriptId] = useState<bigint | null>(null);
+
+  // User state
+  const [showUserModal, setShowUserModal] = useState(false);
+  const [editingUser, setEditingUser] = useState<Account | null>(null);
+  const [userForm, setUserForm] = useState<UserForm>({
+    email: "",
+    password: "",
+  });
+  const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
 
   const { data: scripts } = useAllScripts();
   const { data: accounts } = useAllUserAccounts();
   const addMutation = useAddScript();
   const updateMutation = useUpdateScript();
   const deleteMutation = useDeleteScript();
+  const deleteUserMutation = useDeleteUser();
+  const updateUserMutation = useUpdateUser();
 
   if (!isAdminLoggedIn) {
     return <AdminLogin onLogin={() => {}} />;
@@ -160,13 +180,13 @@ export default function AdminPage() {
 
   const openAdd = () => {
     setEditingScript(null);
-    setForm(emptyForm);
-    setShowModal(true);
+    setScriptForm(emptyForm);
+    setShowScriptModal(true);
   };
 
   const openEdit = (script: Record_) => {
     setEditingScript(script);
-    setForm({
+    setScriptForm({
       title: script.title,
       description: script.description,
       category: script.category,
@@ -175,12 +195,12 @@ export default function AdminPage() {
       language: script.language,
       fileUrl: script.fileUrl,
     });
-    setShowModal(true);
+    setShowScriptModal(true);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleScriptSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const data = { ...form, price: Number.parseFloat(form.price) };
+    const data = { ...scriptForm, price: Number.parseFloat(scriptForm.price) };
     try {
       if (editingScript) {
         await updateMutation.mutateAsync({ id: editingScript.id, ...data });
@@ -189,21 +209,55 @@ export default function AdminPage() {
         await addMutation.mutateAsync(data);
         toast.success("Script adicionado!");
       }
-      setShowModal(false);
+      setShowScriptModal(false);
     } catch {
       toast.error("Erro ao salvar script.");
     }
   };
 
-  const handleDelete = async (id: bigint) => {
-    setDeletingId(id);
+  const handleDeleteScript = async (id: bigint) => {
+    setDeletingScriptId(id);
     try {
       await deleteMutation.mutateAsync(id);
       toast.success("Script removido!");
     } catch {
       toast.error("Erro ao remover script.");
     } finally {
-      setDeletingId(null);
+      setDeletingScriptId(null);
+    }
+  };
+
+  const openEditUser = (account: Account) => {
+    setEditingUser(account);
+    setUserForm({ email: account.email, password: "" });
+    setShowUserModal(true);
+  };
+
+  const handleUserSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingUser) return;
+    try {
+      await updateUserMutation.mutateAsync({
+        luidId: editingUser.luidId,
+        email: userForm.email,
+        password: userForm.password,
+      });
+      toast.success("Usuário atualizado!");
+      setShowUserModal(false);
+    } catch {
+      toast.error("Erro ao atualizar usuário.");
+    }
+  };
+
+  const handleDeleteUser = async (luidId: string) => {
+    setDeletingUserId(luidId);
+    try {
+      await deleteUserMutation.mutateAsync(luidId);
+      toast.success("Usuário removido!");
+    } catch {
+      toast.error("Erro ao remover usuário.");
+    } finally {
+      setDeletingUserId(null);
     }
   };
 
@@ -287,7 +341,7 @@ export default function AdminPage() {
               </div>
             ) : (
               <div
-                className="bg-white rounded-2xl border border-gray-200 shadow-card overflow-hidden"
+                className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden"
                 data-ocid="admin.table"
               >
                 <Table>
@@ -356,8 +410,8 @@ export default function AdminPage() {
                             </button>
                             <button
                               type="button"
-                              onClick={() => handleDelete(script.id)}
-                              disabled={deletingId === script.id}
+                              onClick={() => handleDeleteScript(script.id)}
+                              disabled={deletingScriptId === script.id}
                               className="p-2 text-gray-500 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
                               data-ocid={`admin.row.${i + 1}.delete_button`}
                             >
@@ -388,7 +442,7 @@ export default function AdminPage() {
               </div>
             ) : (
               <div
-                className="bg-white rounded-2xl border border-gray-200 shadow-card overflow-hidden"
+                className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden"
                 data-ocid="admin.table"
               >
                 <Table>
@@ -402,6 +456,9 @@ export default function AdminPage() {
                       </TableHead>
                       <TableHead className="font-bold text-[#111827]">
                         E-mail
+                      </TableHead>
+                      <TableHead className="font-bold text-[#111827]">
+                        Ações
                       </TableHead>
                     </TableRow>
                   </TableHeader>
@@ -420,6 +477,29 @@ export default function AdminPage() {
                         <TableCell className="text-gray-600">
                           {account.email}
                         </TableCell>
+                        <TableCell>
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              onClick={() => openEditUser(account)}
+                              className="p-2 text-gray-500 hover:text-[#111827] hover:bg-gray-100 rounded-lg transition-colors"
+                              title="Editar usuário"
+                              data-ocid={`admin.row.${i + 1}.edit_button`}
+                            >
+                              <Edit2 size={14} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteUser(account.luidId)}
+                              disabled={deletingUserId === account.luidId}
+                              className="p-2 text-gray-500 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                              title="Excluir usuário"
+                              data-ocid={`admin.row.${i + 1}.delete_button`}
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -430,7 +510,8 @@ export default function AdminPage() {
         )}
       </div>
 
-      <Dialog open={showModal} onOpenChange={setShowModal}>
+      {/* Script Modal */}
+      <Dialog open={showScriptModal} onOpenChange={setShowScriptModal}>
         <DialogContent
           className="max-w-lg rounded-2xl"
           data-ocid="admin.dialog"
@@ -440,13 +521,13 @@ export default function AdminPage() {
               {editingScript ? "Editar Script" : "Novo Script"}
             </DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-4 mt-2">
+          <form onSubmit={handleScriptSubmit} className="space-y-4 mt-2">
             <div className="space-y-1">
               <Label className="text-sm font-semibold">Título</Label>
               <Input
-                value={form.title}
+                value={scriptForm.title}
                 onChange={(e) =>
-                  setForm((f) => ({ ...f, title: e.target.value }))
+                  setScriptForm((f) => ({ ...f, title: e.target.value }))
                 }
                 placeholder="Nome do script"
                 required
@@ -457,9 +538,9 @@ export default function AdminPage() {
             <div className="space-y-1">
               <Label className="text-sm font-semibold">Descrição</Label>
               <Textarea
-                value={form.description}
+                value={scriptForm.description}
                 onChange={(e) =>
-                  setForm((f) => ({ ...f, description: e.target.value }))
+                  setScriptForm((f) => ({ ...f, description: e.target.value }))
                 }
                 placeholder="Descreva o script..."
                 required
@@ -472,8 +553,10 @@ export default function AdminPage() {
               <div className="space-y-1">
                 <Label className="text-sm font-semibold">Categoria</Label>
                 <Select
-                  value={form.category}
-                  onValueChange={(v) => setForm((f) => ({ ...f, category: v }))}
+                  value={scriptForm.category}
+                  onValueChange={(v) =>
+                    setScriptForm((f) => ({ ...f, category: v }))
+                  }
                 >
                   <SelectTrigger
                     className="rounded-xl"
@@ -493,8 +576,10 @@ export default function AdminPage() {
               <div className="space-y-1">
                 <Label className="text-sm font-semibold">Linguagem</Label>
                 <Select
-                  value={form.language}
-                  onValueChange={(v) => setForm((f) => ({ ...f, language: v }))}
+                  value={scriptForm.language}
+                  onValueChange={(v) =>
+                    setScriptForm((f) => ({ ...f, language: v }))
+                  }
                 >
                   <SelectTrigger
                     className="rounded-xl"
@@ -518,9 +603,9 @@ export default function AdminPage() {
                 <Input
                   type="number"
                   step="0.01"
-                  value={form.price}
+                  value={scriptForm.price}
                   onChange={(e) =>
-                    setForm((f) => ({ ...f, price: e.target.value }))
+                    setScriptForm((f) => ({ ...f, price: e.target.value }))
                   }
                   placeholder="99.90"
                   required
@@ -531,9 +616,9 @@ export default function AdminPage() {
               <div className="space-y-1">
                 <Label className="text-sm font-semibold">Versão</Label>
                 <Input
-                  value={form.version}
+                  value={scriptForm.version}
                   onChange={(e) =>
-                    setForm((f) => ({ ...f, version: e.target.value }))
+                    setScriptForm((f) => ({ ...f, version: e.target.value }))
                   }
                   placeholder="1.0.0"
                   required
@@ -547,9 +632,9 @@ export default function AdminPage() {
                 URL do Arquivo ZIP
               </Label>
               <Input
-                value={form.fileUrl}
+                value={scriptForm.fileUrl}
                 onChange={(e) =>
-                  setForm((f) => ({ ...f, fileUrl: e.target.value }))
+                  setScriptForm((f) => ({ ...f, fileUrl: e.target.value }))
                 }
                 placeholder="https://..."
                 required
@@ -560,7 +645,7 @@ export default function AdminPage() {
             <div className="flex gap-3 pt-2">
               <button
                 type="button"
-                onClick={() => setShowModal(false)}
+                onClick={() => setShowScriptModal(false)}
                 className="flex-1 bg-gray-100 text-gray-700 font-semibold py-3 rounded-full hover:bg-gray-200 transition-colors"
                 data-ocid="admin.cancel_button"
               >
@@ -578,6 +663,79 @@ export default function AdminPage() {
               </button>
             </div>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* User Edit Modal */}
+      <Dialog open={showUserModal} onOpenChange={setShowUserModal}>
+        <DialogContent
+          className="max-w-md rounded-2xl"
+          data-ocid="admin.dialog"
+        >
+          <DialogHeader>
+            <DialogTitle className="text-xl font-extrabold text-[#111827]">
+              Editar Usuário
+            </DialogTitle>
+          </DialogHeader>
+          {editingUser && (
+            <form onSubmit={handleUserSubmit} className="space-y-4 mt-2">
+              <div className="space-y-1">
+                <Label className="text-sm font-semibold">ID Luid</Label>
+                <Input
+                  value={editingUser.luidId}
+                  disabled
+                  className="rounded-xl bg-gray-50 text-gray-500"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-sm font-semibold">E-mail</Label>
+                <Input
+                  value={userForm.email}
+                  onChange={(e) =>
+                    setUserForm((f) => ({ ...f, email: e.target.value }))
+                  }
+                  placeholder="email@exemplo.com"
+                  required
+                  className="rounded-xl"
+                  data-ocid="admin.input"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-sm font-semibold">Nova Senha</Label>
+                <Input
+                  type="password"
+                  value={userForm.password}
+                  onChange={(e) =>
+                    setUserForm((f) => ({ ...f, password: e.target.value }))
+                  }
+                  placeholder="Deixe em branco para manter a atual"
+                  className="rounded-xl"
+                  data-ocid="admin.input"
+                />
+                <p className="text-xs text-gray-400">
+                  Deixe em branco para não alterar a senha.
+                </p>
+              </div>
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowUserModal(false)}
+                  className="flex-1 bg-gray-100 text-gray-700 font-semibold py-3 rounded-full hover:bg-gray-200 transition-colors"
+                  data-ocid="admin.cancel_button"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={updateUserMutation.isPending}
+                  className="flex-1 bg-[#39FF14] text-[#111827] font-bold py-3 rounded-full hover:bg-[#2ee610] transition-colors disabled:opacity-60"
+                  data-ocid="admin.confirm_button"
+                >
+                  {updateUserMutation.isPending ? "Salvando..." : "Salvar"}
+                </button>
+              </div>
+            </form>
+          )}
         </DialogContent>
       </Dialog>
     </div>

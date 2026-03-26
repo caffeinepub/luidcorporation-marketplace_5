@@ -139,6 +139,8 @@ export interface backendInterface {
     addScriptForSale(title: string, description: string, category: Category, price: number, version: string, language: string, fileUrl: string): Promise<void>;
     assignCallerUserRole(user: Principal, role: UserRole): Promise<void>;
     deleteScript(scriptId: ScriptId): Promise<void>;
+    deleteUser(luidId: LuidId): Promise<void>;
+    updateUser(luidId: LuidId, email: string, password: string): Promise<void>;
     getAllScripts(): Promise<Array<Record_>>;
     getAllUserAccounts(): Promise<Array<Account>>;
     getCallerUserProfile(): Promise<UserProfile | null>;
@@ -297,6 +299,34 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.deleteScript(arg0);
+            return result;
+        }
+    }
+    async deleteUser(arg0: LuidId): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.deleteUser(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.deleteUser(arg0);
+            return result;
+        }
+    }
+    async updateUser(arg0: LuidId, arg1: string, arg2: string): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.updateUser(arg0, arg1, arg2);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.updateUser(arg0, arg1, arg2);
             return result;
         }
     }
