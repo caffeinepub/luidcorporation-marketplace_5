@@ -1,0 +1,55 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --radius: 0.875rem;
+    /* Background: #FFFFFF */
+    --background: 1 0 0;
+    --foreground: 0.145 0.01 264;
+    /* Card: white */
+    --card: 1 0 0;
+    --card-foreground: 0.145 0.01 264;
+    --popover: 1 0 0;
+    --popover-foreground: 0.145 0.01 264;
+    /* Primary: neon green #39FF14 => oklch ~0.87 0.31 130 */
+    --primary: 0.87 0.31 130;
+    --primary-foreground: 0.145 0.01 264;
+    --secondary: 0.96 0.005 264;
+    --secondary-foreground: 0.145 0.01 264;
+    --muted: 0.96 0.005 264;
+    --muted-foreground: 0.55 0.015 264;
+    --accent: 0.96 0.005 264;
+    --accent-foreground: 0.145 0.01 264;
+    --destructive: 0.577 0.245 27.325;
+    --destructive-foreground: 1 0 0;
+    /* Border: #E5E7EB */
+    --border: 0.93 0.005 264;
+    --input: 0.93 0.005 264;
+    --ring: 0.87 0.31 130;
+    /* Dark navbar: #111827 => oklch ~0.17 0.02 264 */
+    --dark-nav: 0.17 0.02 264;
+    --chart-1: 0.646 0.222 41.116;
+    --chart-2: 0.6 0.118 184.704;
+    --chart-3: 0.398 0.07 227.392;
+    --chart-4: 0.828 0.189 84.429;
+    --chart-5: 0.769 0.188 70.08;
+    --sidebar: 0.985 0 0;
+    --sidebar-foreground: 0.145 0.01 264;
+    --sidebar-primary: 0.87 0.31 130;
+    --sidebar-primary-foreground: 0.145 0.01 264;
+    --sidebar-accent: 0.96 0.005 264;
+    --sidebar-accent-foreground: 0.145 0.01 264;
+    --sidebar-border: 0.93 0.005 264;
+    --sidebar-ring: 0.87 0.31 130;
+  }
+
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: "Inter", sans-serif;
+  }
+}
