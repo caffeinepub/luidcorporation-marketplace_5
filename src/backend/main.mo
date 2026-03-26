@@ -154,10 +154,10 @@ actor {
   };
 
   public shared func deleteUser(luidId : LuidId) : async () {
-    if (not userAccounts.containsKey(luidId)) {
-      Runtime.trap("User does not exist");
+    switch (userAccounts.get(luidId)) {
+      case (null) { Runtime.trap("User does not exist") };
+      case (?_) { ignore userAccounts.remove(luidId) };
     };
-    userAccounts.remove(luidId);
   };
 
   public shared func updateUser(
@@ -168,14 +168,9 @@ actor {
     switch (userAccounts.get(luidId)) {
       case (null) { Runtime.trap("User does not exist") };
       case (?account) {
-        userAccounts.add(
-          luidId,
-          {
-            luidId;
-            email;
-            password = if (Text.equal(password, "")) account.password else password;
-          },
-        );
+        let newPassword = if (Text.equal(password, "")) account.password else password;
+        ignore userAccounts.remove(luidId);
+        userAccounts.add(luidId, { luidId; email; password = newPassword });
       };
     };
   };
